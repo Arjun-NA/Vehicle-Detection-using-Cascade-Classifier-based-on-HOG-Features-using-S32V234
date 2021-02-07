@@ -1,0 +1,15 @@
+ALL_GRAPHS := $(patsubst %_nativekernel.hpp,%, $(notdir $(wildcard ../APU_gen/src/*_nativekernel.hpp)))
+ALL_LOADHS := $(foreach graph,$(ALL_GRAPHS),../A53_gen/inc/$(graph)_APU_LOAD.h)
+
+define loop_check_exist
+		$(foreach lhfile,$(ALL_LOADHS), \
+		@if [ ! -e $(lhfile) ] ; \
+		then \
+			make clean ; \
+			exit 1 ; \
+		fi;
+)
+endef
+
+check_loadh:
+	@$(loop_check_exist)

@@ -1,0 +1,8 @@
+add
+menu
+(
+  popup "APEX Debug Info"
+  (
+   menuitem "APU_APEX_VGT_TEST_GRAPH" "intercom.execute localhost:10014 do ./Project_Settings/Debugger/APU_APEX_VGT_TEST_GRAPH.cmm"
+  )
+)

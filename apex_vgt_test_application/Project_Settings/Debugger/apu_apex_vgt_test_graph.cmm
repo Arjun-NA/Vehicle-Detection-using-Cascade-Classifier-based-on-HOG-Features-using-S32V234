@@ -1,0 +1,5 @@
+if run()
+break.direct
+data.load.elf ./APU/APEX_VGT_TEST_GRAPH.elf /nocode
+break.set APEX_VGT_TEST_GRAPH
+go

@@ -1,0 +1,164 @@
+OUTPUT_FORMAT("elf32-big")
+ENTRY(__main_fsl)
+
+/* Default memory layout in bytes
++-----+-------------+-----------+
+| PMh | text        |           |
++-----+-------------+   128Kb   |
+| DMb | scalar data |           |
++-----+-------------+-----------+
+| VMb | vector data | 2KBx16bit |
++-----+-------------+-----------+
+*/
+
+PHDRS {
+  PMh_sgmt PT_LOAD;
+  DMb_sgmt PT_LOAD;
+  VMb_sgmt PT_LOAD;
+  KMb_sgmt PT_LOAD;
+}
+
+MEMORY {
+  VDATA (rw) : ORIGIN = 0x08000,  LENGTH =  160K
+  TEXT  (rx) : ORIGIN = 0x00000,  LENGTH =  128K
+  DATA  (rw) : ORIGIN = 0x00600,  LENGTH =  128K
+  KDB   (rw) : ORIGIN = 0x10800,  LENGTH = 0x800
+}
+
+/* heap 0x0 to 0x600 DMb */
+__apex_heap_start   = 0;
+__apex_heap_end     = 0x5ff;
+
+/* vector stack 0x0 to 0x100 VMb */
+_sp_start_value_VMb = 0;
+_sp_end_value_VMb = 255;
+_sp_start_VMb = 0;
+_sp_end_VMb = 255;
+
+/* scalar stack size of 0x900 follows user data DMb */
+__apex_stack_size   = 0x8ff;
+_sp_start_value_DMb = __apex_stack_start;
+_sp_end_value_DMb =__apex_stack_end;
+_sp_start_DMb = __apex_stack_start;
+_sp_end_DMb = __apex_stack_end;
+
+
+SECTIONS {
+
+  .text.PMh : {
+    *(.text.__main_fsl .text.__exit_fsl)
+    *(.text .text.*)
+  } > TEXT : PMh_sgmt
+
+  .vdata.VMb : {
+    KEEP(*(.bss.CID.VMb))
+    *(.data.VMb .data.*.VMb)
+    *(.rodata.VMb .rodata.*.VMb)
+    *(.bss.VMb .bss.*.VMb)
+  } > VDATA : VMb_sgmt
+
+    .kernel.DMb : {
+        KEEP(*(.DMEM_KERNEL_NUM))
+        KEEP(*(.DMEM_KERNEL_DB))
+    } > KDB : KMb_sgmt
+
+    /* DMEM */
+/*
+//TOTAL RESERVED SIZE = stack + DMEM_SHARED + DMEM_CMD_CNT + DMEM_CMD_QUE + (SWT UTIL stuff)       + gPerfInfo + ACF GLOBALS
+//                    = 1536  + 32          + 32           + 1984         + (4 + 4 + 4 + 4 + 1008) + 32        + (4*4)       = 4656 (0x1230) bytes
+//-------------------------------------------------------------------------------
+*/
+
+    .bss1.DMb : {
+        /** BSS
+        _symbol DMEM_SHARED         0x600   32
+        _symbol DMEM_CMD_CN         0x620   32
+        _symbol DMEM_CMD_QUE        0x640 1984
+        _symbol gSWT_RPT_DBASE_SIZE 0xE00    4 
+        **/
+        KEEP(*(.bss.DMEM_SHARED))
+        KEEP(*(.bss.DMEM_CMD_CNT))
+        KEEP(*(.bss.DMEM_CMD_QUE))
+        KEEP(*(.bss.gSWT_RPT_DBASE_SIZE))
+        } > DATA : DMb_sgmt
+
+    .data1.DMb :    {
+        /** 
+        _symbol gSWT_RPT_DBASE      0xE04    4
+        **/
+        KEEP(*(.data.gSWT_RPT_DBASE))
+        } > DATA : DMb_sgmt
+
+    .bss2.DMb : {
+        /** 
+        _symbol gSWT_RPT_DBASE_BEG  0xE08    4
+        _symbol gSWT_RPT_DBASE_END  0xE0C    4
+        _symbol gSWT_RPT_DBASE_TBL  0xE10 1008
+        **/
+        KEEP(*(.bss.gSWT_RPT_DBASE_BEG))
+        KEEP(*(.bss.gSWT_RPT_DBASE_END))
+        KEEP(*(.bss.gSWT_RPT_DBASE_TBL))
+        
+        /** ACF PROGRAM PROFILING STRUCT
+        _symbol gPerfInfo           0x1200 32
+        //ACF GLOBALS
+        _symbol gNumInputIterations 0x1220 4
+        _symbol gInputIter          0x1224 4
+        _symbol gProcIter           0x1228 4
+        _symbol gInputIterMce       0x122C 4
+        **/
+        KEEP(*(.bss.gPerfInfo))
+        /* ACF GLOBALS */
+        KEEP(*(.bss.gNumInputIterations))
+        KEEP(*(.bss.gInputIter))
+        KEEP(*(.bss.gProcIter))
+        KEEP(*(.bss.gInputIterMce))
+        . = ALIGN(0x1230);
+        } > DATA : DMb_sgmt
+
+    .rodata.DMb :   {
+        *(.rodata .rodata.*)
+        } > DATA : DMb_sgmt
+
+    .ctor.DMb : {
+        __CTOR_LIST__ = .;
+        *(.ctors)
+        __CTOR_END__  = .;
+        __DTOR_LIST__ = .;
+        *(.dtors)
+        __DTOR_END__  = .;
+        } > DATA : DMb_sgmt
+
+    .data.DMb : {
+        *(.data .data.*)
+        } > DATA : DMb_sgmt
+
+    .bss.DMb :  {
+        *(.bss .bss.*)
+        } > DATA : DMb_sgmt
+
+    .eh_frame : {
+        *(.eh_frame .eh_frame.*)
+        } > DATA : DMb_sgmt
+
+    .stack.DMb : {
+        . = ALIGN(16);
+        __apex_stack_start   = .;
+        . = . + __apex_stack_size;
+        __apex_stack_end     = .;
+        } > DATA : DMb_sgmt
+
+  /DISCARD/ : {
+    *(.tcthostedio)
+  }
+
+  .memstrtab : {
+    *(.memstrtab)
+  } >DATA
+
+  .tctmemtab : {
+    *(.tctmemtab)
+  } >DATA
+
+}
+
